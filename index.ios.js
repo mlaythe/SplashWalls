@@ -4,6 +4,8 @@
  * @flow
  */
 
+let RandManager = require('./RandManager.js');
+
 import React, {
   AppRegistry,
   Component,
@@ -12,6 +14,8 @@ import React, {
   View,
   ActivityIndicatorIOS
 } from 'react-native';
+
+const NUM_WALLPAPERS = 5;
 
 class SplashWalls extends Component {
   constructor(props) {
@@ -32,9 +36,15 @@ class SplashWalls extends Component {
     fetch(url)
       .then( response => response.json() )
       .then( jsonData => {
-        console.log(jsonData);
+        let randomIds = RandManager.uniqueRandomNumbers(NUM_WALLPAPERS, 0, jsonData.length);
+        let walls = [];
+        randomIds.forEach(randomID => {
+          walls.push(jsonData[randomID]);
+        });
+
         this.setState({
-          isLoading: false
+          isLoading: false,
+          wallsJSON: [].concat(walls)
         });
       })
       .catch( err => console.log('Fetch error' + err));
@@ -54,13 +64,20 @@ class SplashWalls extends Component {
   }
 
   renderResults() {
-    return (
-      <View>
-        <Text>
-          Data Loaded
-        </Text>
-      </View>
-    );
+    let {wallsJSON, isLoading} = this.state;
+    if( !isLoading ) {
+      return (
+        <View>
+          {wallsJSON.map((wallpaper, index) => {
+            return (
+              <Text key={index}>
+                {wallpaper.id}
+              </Text>
+            );
+          })}
+        </View>
+      );
+    }
   }
 
   render() {
