@@ -8,6 +8,7 @@ let RandManager = require('./RandManager.js');
 let Swiper = require('react-native-swiper');
 let NetworkImage = require('react-native-image-progress');
 let Progress = require('react-native-progress');
+let Utils = require('./Utils.js');
 
 let {width, height} = React.Dimensions.get('window');
 
@@ -17,10 +18,13 @@ import React, {
   StyleSheet,
   Text,
   View,
-  ActivityIndicatorIOS
+  ActivityIndicatorIOS,
+  PanResponder
 } from 'react-native';
 
 const NUM_WALLPAPERS = 5;
+const DOUBLE_TAP_DELAY = 300;
+const DOUBLE_TAP_RADIUS = 20;
 
 class SplashWalls extends Component {
   constructor(props) {
@@ -30,10 +34,29 @@ class SplashWalls extends Component {
       wallsJSON: [],
       isLoading: true
     };
+
+    this.imagePanResponder = {};
+
+    this.prevTouchInfo = {
+      prevTouchX: 0,
+      prevTouchY: 0,
+      prevTouchTimeStamp: 0
+    };
+
+    this.handlePanResponderGrant = this.handlePanResponderGrant.bind(this);
+  }
+
+  componentWillMount() {
+    this.imagePanResponder = PanResponder.create({
+      onStartShouldSetPanResponder: this.handleStartShouldSetPanResponder,
+      onPanResponderGrant: this.handlePanResponderGrant,
+      onPanResponderRelease: this.handlePanResponderEnd,
+      onPanResponderTerminate: this.handlePanResponderEnd
+    });
   }
 
   componentDidMount() {
-      this.fetchWallsJSON();
+    this.fetchWallsJSON();
   }
 
   fetchWallsJSON() {
@@ -90,7 +113,8 @@ class SplashWalls extends Component {
                   color: 'rgba(255, 255, 255)',
                   size: 'large',
                   thickness: 7
-                  }}>
+                  }}
+                  {...this.imagePanResponder.panHandlers}>
                   <Text style={styles.label}>Photo by</Text>
                   <Text style={styles.label_authorName}>{wallpaper.author}</Text>
                 </NetworkImage>
@@ -110,6 +134,35 @@ class SplashWalls extends Component {
       } else {
         return this.renderResults();
       }
+  }
+
+  handleStartShouldSetPanResponder(e, gestureState) {
+    return true;
+  }
+
+  handlePanResponderGrant(e, gestureState) {
+    let currentTouchTimeStamp = Date.now();
+
+    if( this.isDoubleTap(currentTouchTimeStamp, gestureState) ) {
+      console.log('double tap detected');
+    }
+
+    this.prevTouchInfo = {
+      prevTouchX: gestureState.x0,
+      prevTouchY: gestureState.y0,
+      prevTouchTimeStamp: currentTouchTimeStamp
+    };
+  }
+
+  handlePanResponderEnd(e, gestureState) {
+    console.log('finger released from image');
+  }
+
+  isDoubleTap(currentTouchTimeStamp, {x0, y0}) {
+    let {prevTouchX, prevTouchY, prevTouchTimeStamp} = this.prevTouchInfo;
+    let dt = currentTouchTimeStamp - prevTouchTimeStamp;
+
+    return (dt < DOUBLE_TAP_DELAY && Utils.distance(prevTouchX, prevTouchY, x0, y0) < DOUBLE_TAP_RADIUS);
   }
 }
 
