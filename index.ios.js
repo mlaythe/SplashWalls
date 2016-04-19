@@ -9,7 +9,8 @@ import React, {
   Component,
   StyleSheet,
   Text,
-  View
+  View,
+  ActivityIndicatorIOS
 } from 'react-native';
 
 class SplashWalls extends Component {
@@ -32,45 +33,54 @@ class SplashWalls extends Component {
       .then( response => response.json() )
       .then( jsonData => {
         console.log(jsonData);
+        this.setState({
+          isLoading: false
+        });
       })
       .catch( err => console.log('Fetch error' + err));
   }
 
-  render() {
+  renderLoadingMessage() {
     return (
-      <View style={styles.container}>
-        <Text style={styles.welcome}>
-          Welcome to React Native!
-        </Text>
-        <Text style={styles.instructions}>
-          To get started, edit index.ios.js
-        </Text>
-        <Text style={styles.instructions}>
-          Press Cmd+R to reload,{'\n'}
-          Cmd+D or shake for dev menu
+      <View style={styles.loadingContainer}>
+        <ActivityIndicatorIOS
+          animating={true}
+          color={'#fff'}
+          size={'small'}
+          style={{margin: 15}}/>
+        <Text style={{color: '#fff'}}>Contacting Unsplash</Text>
+      </View>
+    );
+  }
+
+  renderResults() {
+    return (
+      <View>
+        <Text>
+          Data Loaded
         </Text>
       </View>
     );
   }
+
+  render() {
+      let {isLoading} = this.state;
+      if (isLoading) {
+        return this.renderLoadingMessage();
+      } else {
+        return this.renderResults();
+      }
+  }
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5FCFF',
-  },
-  welcome: {
-    fontSize: 20,
-    textAlign: 'center',
-    margin: 10,
-  },
-  instructions: {
-    textAlign: 'center',
-    color: '#333333',
-    marginBottom: 5,
-  },
+    backgroundColor: '#000'
+  }
 });
 
 AppRegistry.registerComponent('SplashWalls', () => SplashWalls);
