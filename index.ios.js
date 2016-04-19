@@ -5,6 +5,11 @@
  */
 
 let RandManager = require('./RandManager.js');
+let Swiper = require('react-native-swiper');
+let NetworkImage = require('react-native-image-progress');
+let Progress = require('react-native-progress');
+
+let {width, height} = React.Dimensions.get('window');
 
 import React, {
   AppRegistry,
@@ -68,14 +73,32 @@ class SplashWalls extends Component {
     if( !isLoading ) {
       return (
         <View>
+          <Swiper
+          dot={<View style={{backgroundColor:'rgba(255,255,255,.4)', width: 8, height: 8,borderRadius: 10, marginLeft: 3, marginRight: 3, marginTop: 3, marginBottom: 3,}} />}
+          activeDot={<View style={{backgroundColor: '#fff', width: 13, height: 13, borderRadius: 7, marginLeft: 7, marginRight: 7}} />}
+          onMomentumScrollEnd={this.onMomentumScrollEnd}
+          loop={false}>
+
           {wallsJSON.map((wallpaper, index) => {
             return (
-              <Text key={index}>
-                {wallpaper.id}
-              </Text>
+              <View key={index}>
+                <NetworkImage
+                  source={{uri: `http://unsplash.it/${wallpaper.width}/${wallpaper.height}?image=${wallpaper.id}`}}
+                  indicator={Progress.circle}
+                  style={styles.wallpaperImage}
+                  indicatorProps={{
+                  color: 'rgba(255, 255, 255)',
+                  size: 'large',
+                  thickness: 7
+                  }}>
+                  <Text style={styles.label}>Photo by</Text>
+                  <Text style={styles.label_authorName}>{wallpaper.author}</Text>
+                </NetworkImage>
+              </View>
             );
           })}
-        </View>
+        </Swiper>
+      </View>
       );
     }
   }
@@ -97,6 +120,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000'
+  },
+  wallpaperImage: {
+    flex: 1,
+    width: width,
+    height: height,
+    backgroundColor: '#000'
+  },
+  label: {
+    position: 'absolute',
+    color: '#fff',
+    fontSize: 13,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 2,
+    paddingLeft: 5,
+    top: 20,
+    left: 20,
+    width: width/2
+  },
+  label_authorName: {
+    position: 'absolute',
+    color: '#fff',
+    fontSize: 15,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: 2,
+    paddingLeft: 5,
+    top: 41,
+    left: 20,
+    fontWeight: 'bold',
+    width: width/2
   }
 });
 
