@@ -9,6 +9,8 @@ let Swiper = require('react-native-swiper');
 let NetworkImage = require('react-native-image-progress');
 let Progress = require('react-native-progress');
 let Utils = require('./Utils.js');
+let ProgressHUD = require('./ProgressHUD.js');
+let ShakeEvent = require('react-native-shake-event-ios');
 
 let {width, height} = React.Dimensions.get('window');
 
@@ -25,29 +27,38 @@ import React, {
 } from 'react-native';
 
 const NUM_WALLPAPERS = 5;
-const DOUBLE_TAP_DELAY = 300;
+const DOUBLE_TAP_DELAY = 300; // milliseconds
 const DOUBLE_TAP_RADIUS = 20;
 
-class SplashWalls extends Component {
+class SplashWalls extends Component{
   constructor(props) {
     super(props);
 
     this.state = {
       wallsJSON: [],
-      isLoading: true
+      isLoading: true,
+      isHudVisible: false
     };
 
     this.imagePanResponder = {};
-    this.currentWallIndex = 0;
 
+    // Previous touch information
     this.prevTouchInfo = {
       prevTouchX: 0,
       prevTouchY: 0,
       prevTouchTimeStamp: 0
     };
 
+    this.currentWallIndex = 0;
+
+    // Binding this to methods
     this.handlePanResponderGrant = this.handlePanResponderGrant.bind(this);
     this.onMomentumScrollEnd = this.onMomentumScrollEnd.bind(this);
+
+  }
+
+  componentDidMount() {
+    this.fetchWallsJSON();
   }
 
   componentWillMount() {
@@ -57,21 +68,41 @@ class SplashWalls extends Component {
       onPanResponderRelease: this.handlePanResponderEnd,
       onPanResponderTerminate: this.handlePanResponderEnd
     });
+
+    // Fetch new wallpapers on shake
+    ShakeEvent.addEventListener('shake', () => {
+      this.initialize();
+      this.fetchWallsJSON();
+    });
   }
 
-  componentDidMount() {
-    this.fetchWallsJSON();
+  render() {
+    var {isLoading} = this.state;
+    if(isLoading)
+      return this.renderLoadingMessage();
+    else
+      return this.renderResults();
+  }
+
+  initialize() {
+    this.setState({
+      wallsJSON: [],
+      isLoading: true,
+      isHudVisible: false
+    });
+
+    this.currentWallIndex = 0;
   }
 
   fetchWallsJSON() {
-    let url = 'http://unsplash.it/list';
+    var url = 'http://unsplash.it/list';
     fetch(url)
       .then( response => response.json() )
       .then( jsonData => {
-        let randomIds = RandManager.uniqueRandomNumbers(NUM_WALLPAPERS, 0, jsonData.length);
-        let walls = [];
-        randomIds.forEach(randomID => {
-          walls.push(jsonData[randomID]);
+        var randomIds = RandManager.uniqueRandomNumbers(NUM_WALLPAPERS, 0, jsonData.length);
+        var walls = [];
+        randomIds.forEach(randomId => {
+          walls.push(jsonData[randomId]);
         });
 
         this.setState({
@@ -79,7 +110,7 @@ class SplashWalls extends Component {
           wallsJSON: [].concat(walls)
         });
       })
-      .catch( err => console.log('Fetch error' + err));
+      .catch( error => console.log('JSON Fetch error : ' + error) );
   }
 
   renderLoadingMessage() {
@@ -89,16 +120,19 @@ class SplashWalls extends Component {
           animating={true}
           color={'#fff'}
           size={'small'}
-          style={{margin: 15}}/>
-        <Text style={{color: '#fff'}}>Contacting Unsplash</Text>
+          style={{margin: 15}} />
+          <Text style={{color: '#fff'}}>Contacting Unsplash</Text>
       </View>
     );
   }
 
   saveCurrentWallpaperToCameraRoll() {
-    let {wallsJSON} = this.state;
-    let currentWall = wallsJSON[this.currentWallIndex];
-    let currentWallURL = `http://unsplash.it/${currentWall.width}/${currentWall.height}?image=${currentWall.id}`;
+    // Make Progress HUD visible
+    this.setState({isHudVisible: true});
+
+    var {wallsJSON} = this.state;
+    var currentWall = wallsJSON[this.currentWallIndex];
+    var currentWallURL = `http://unsplash.it/${currentWall.width}/${currentWall.height}?image=${currentWall.id}`;
 
     CameraRoll.saveImageWithTag(currentWallURL, (data) => {
       // Hide Progress HUD
@@ -116,61 +150,58 @@ class SplashWalls extends Component {
     });
   }
 
-  renderResults() {
-    let {wallsJSON, isLoading} = this.state;
-    if( !isLoading ) {
-      return (
-        <View>
-          <Swiper
-          dot={<View style={{backgroundColor:'rgba(255,255,255,.4)', width: 8, height: 8,borderRadius: 10, marginLeft: 3, marginRight: 3, marginTop: 3, marginBottom: 3,}} />}
-          activeDot={<View style={{backgroundColor: '#fff', width: 13, height: 13, borderRadius: 7, marginLeft: 7, marginRight: 7}} />}
-          onMomentumScrollEnd={this.onMomentumScrollEnd}
-          loop={false}>
+  onMomentumScrollEnd(e, state, context) {
+    this.currentWallIndex = state.index;
+  }
 
-          {wallsJSON.map((wallpaper, index) => {
-            return (
-              <View key={index}>
-                <NetworkImage
-                  source={{uri: `http://unsplash.it/${wallpaper.width}/${wallpaper.height}?image=${wallpaper.id}`}}
-                  indicator={Progress.circle}
-                  style={styles.wallpaperImage}
-                  indicatorProps={{
+  renderResults() {
+    var {wallsJSON, isHudVisible} = this.state;
+    return (
+      <View>
+      <Swiper
+        dot={<View style={{backgroundColor:'rgba(255,255,255,.4)', width: 8, height: 8,borderRadius: 10, marginLeft: 3, marginRight: 3, marginTop: 3, marginBottom: 3,}} />}
+        activeDot={<View style={{backgroundColor: '#fff', width: 13, height: 13, borderRadius: 7, marginLeft: 7, marginRight: 7}} />}
+        onMomentumScrollEnd={this.onMomentumScrollEnd}
+        index={this.currentWallIndex}
+        loop={false}>
+        {wallsJSON.map((wallpaper, index) => {
+          return(
+            <View key={wallpaper.id}>
+              <NetworkImage
+                source={{uri: `https://unsplash.it/${wallpaper.width}/${wallpaper.height}?image=${wallpaper.id}`}}
+                indicator={Progress.Circle}
+                indicatorProps={{
                   color: 'rgba(255, 255, 255)',
-                  size: 'large',
+                  size: 60,
                   thickness: 7
-                  }}
-                  {...this.imagePanResponder.panHandlers}>
+                }}
+                threshold={0}
+                style={styles.wallpaperImage}
+                {...this.imagePanResponder.panHandlers}>
+
                   <Text style={styles.label}>Photo by</Text>
                   <Text style={styles.label_authorName}>{wallpaper.author}</Text>
-                </NetworkImage>
-              </View>
-            );
-          })}
-        </Swiper>
+
+              </NetworkImage>
+            </View>
+          );
+        })}
+      </Swiper>
+      <ProgressHUD width={width} height={height} isVisible={isHudVisible}/>
       </View>
-      );
-    }
+    );
   }
 
-  render() {
-      let {isLoading} = this.state;
-      if (isLoading) {
-        return this.renderLoadingMessage();
-      } else {
-        return this.renderResults();
-      }
-  }
-
-  handleStartShouldSetPanResponder(e, gestureState) {
+  // Pan Handler methods
+  handleStartShouldSetPanResponder(e, gestureState){
     return true;
   }
 
   handlePanResponderGrant(e, gestureState) {
-    let currentTouchTimeStamp = Date.now();
+    var currentTouchTimeStamp = Date.now();
 
-    if( this.isDoubleTap(currentTouchTimeStamp, gestureState) ) {
+    if( this.isDoubleTap(currentTouchTimeStamp, gestureState) )
       this.saveCurrentWallpaperToCameraRoll();
-    }
 
     this.prevTouchInfo = {
       prevTouchX: gestureState.x0,
@@ -180,25 +211,23 @@ class SplashWalls extends Component {
   }
 
   handlePanResponderEnd(e, gestureState) {
-    console.log('finger released from image');
+    // When finger is pulled up from the screen
   }
 
   isDoubleTap(currentTouchTimeStamp, {x0, y0}) {
-    let {prevTouchX, prevTouchY, prevTouchTimeStamp} = this.prevTouchInfo;
-    let dt = currentTouchTimeStamp - prevTouchTimeStamp;
+    var {prevTouchX, prevTouchY, prevTouchTimeStamp} = this.prevTouchInfo;
+    var dt = currentTouchTimeStamp - prevTouchTimeStamp;
 
     return (dt < DOUBLE_TAP_DELAY && Utils.distance(prevTouchX, prevTouchY, x0, y0) < DOUBLE_TAP_RADIUS);
   }
 
-  onMomentumScrollEnd(e, state, context) {
-    this.currentWallIndex = state.index;
-  }
-}
 
-const styles = StyleSheet.create({
+};
+
+var styles = StyleSheet.create({
   loadingContainer: {
-    flex: 1,
     flexDirection: 'row',
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#000'
@@ -213,7 +242,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     color: '#fff',
     fontSize: 13,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     padding: 2,
     paddingLeft: 5,
     top: 20,
@@ -224,7 +253,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     color: '#fff',
     fontSize: 15,
-    backgroundColor: 'rgba(0,0,0,0.8)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     padding: 2,
     paddingLeft: 5,
     top: 41,
