@@ -19,7 +19,9 @@ import React, {
   Text,
   View,
   ActivityIndicatorIOS,
-  PanResponder
+  PanResponder,
+  CameraRoll,
+  AlertIOS
 } from 'react-native';
 
 const NUM_WALLPAPERS = 5;
@@ -36,6 +38,7 @@ class SplashWalls extends Component {
     };
 
     this.imagePanResponder = {};
+    this.currentWallIndex = 0;
 
     this.prevTouchInfo = {
       prevTouchX: 0,
@@ -44,6 +47,7 @@ class SplashWalls extends Component {
     };
 
     this.handlePanResponderGrant = this.handlePanResponderGrant.bind(this);
+    this.onMomentumScrollEnd = this.onMomentumScrollEnd.bind(this);
   }
 
   componentWillMount() {
@@ -89,6 +93,27 @@ class SplashWalls extends Component {
         <Text style={{color: '#fff'}}>Contacting Unsplash</Text>
       </View>
     );
+  }
+
+  saveCurrentWallpaperToCameraRoll() {
+    let {wallsJSON} = this.state;
+    let currentWall = wallsJSON[this.currentWallIndex];
+    let currentWallURL = `http://unsplash.it/${currentWall.width}/${currentWall.height}?image=${currentWall.id}`;
+
+    CameraRoll.saveImageWithTag(currentWallURL, (data) => {
+      // Hide Progress HUD
+      this.setState({isHudVisible: false});
+
+      AlertIOS.alert(
+        'Saved',
+        'Wallpaper successfully saved to Camera Roll',
+        [
+          {text: 'High 5!', onPress: () => console.log('OK Pressed!')}
+        ]
+      );
+    },(err) =>{
+      console.log('Error saving to camera roll', err);
+    });
   }
 
   renderResults() {
@@ -144,7 +169,7 @@ class SplashWalls extends Component {
     let currentTouchTimeStamp = Date.now();
 
     if( this.isDoubleTap(currentTouchTimeStamp, gestureState) ) {
-      console.log('double tap detected');
+      this.saveCurrentWallpaperToCameraRoll();
     }
 
     this.prevTouchInfo = {
@@ -163,6 +188,10 @@ class SplashWalls extends Component {
     let dt = currentTouchTimeStamp - prevTouchTimeStamp;
 
     return (dt < DOUBLE_TAP_DELAY && Utils.distance(prevTouchX, prevTouchY, x0, y0) < DOUBLE_TAP_RADIUS);
+  }
+
+  onMomentumScrollEnd(e, state, context) {
+    this.currentWallIndex = state.index;
   }
 }
 
